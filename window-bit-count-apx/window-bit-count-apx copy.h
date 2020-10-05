@@ -89,29 +89,24 @@ uint32_t wnd_bit_count_apx_next(StateApx* self, bool item) {
         printf("self->index_next = %u\n", self->index_next);
         // self->index_oldest = (self->index_oldest + 1) % self->total_bucket;
         
-        int group_count = 1; 
+        int group_count = 1;
         int group_size = 0;
-        // Merge gv
-        size_t T_pointer_bucket = (self->total_bucket + self->index_next - 1) % self->total_bucket;
-
+        // Merge
+        size_t pointer_bucket = self->index_next - 1;
         // size_t pointer_bucket = (self->index_next - 1 + self->total_bucket)%self->total_bucket;
-        for (size_t i=self->total_bucket; (int)i>=0; i--) {
-            printf("before %zu , i :%zu \n",T_pointer_bucket,i);
-            size_t pointer_bucket = (T_pointer_bucket + i) % self->total_bucket;
-            printf("pointer_bucket %zu\n" , pointer_bucket);
+        for (size_t i=self->total_bucket; i>=0; i--) {
+            pointer_bucket = (pointer_bucket + i) % self->total_bucket;
+            printf("pointer_bucket = %u\n", pointer_bucket);
             if (self->wnd_buffer[pointer_bucket].size == group_count) {
                 group_size += 1;
                 printf("group_size = %d\n", group_size);
-                if (group_size >= self->k + 2) {
-                    pointer_bucket = (T_pointer_bucket + i) % self->total_bucket;
-                    printf("group_size = %d\n", group_size);
+                if (group_size >= self->k+2) {
                     N_MERGES ++;
-                    printf("pointer_bucket %zu",pointer_bucket);
                     self->wnd_buffer[pointer_bucket].size *= 2;
                     self->wnd_buffer[pointer_bucket].timestamp = self->wnd_buffer[(pointer_bucket+1)%self->total_bucket].timestamp;
                     self->wnd_buffer[(pointer_bucket+1)%self->total_bucket].size = 0;
                     self->wnd_buffer[(pointer_bucket+1)%self->total_bucket].timestamp = 0;
-
+                    
                     if (pointer_bucket <= self->index_next - 1){
                         memmove(self->wnd_buffer+((pointer_bucket+1)%self->total_bucket)*sizeof(Bucket), self->wnd_buffer+((pointer_bucket+2)%self->total_bucket)*sizeof(Bucket),(self->index_next-1-((pointer_bucket+1)%self->total_bucket))*sizeof(Bucket));
                     } else {
@@ -127,6 +122,19 @@ uint32_t wnd_bit_count_apx_next(StateApx* self, bool item) {
                     group_size = 1;
                 }    
             } else {
+                // move all full buckets to 0
+                // for (size_t j = 0; j < self->total_bucket; j ++){
+                //     if(self->wnd_buffer[j].size == 0 && 
+                //     self->wnd_buffer[(j+1)%self->total_bucket].size != 0){
+                //         memmove(self->wnd_buffer+j*sizeof(Bucket), self->wnd_buffer+(j+1)*sizeof(Bucket),((self->index_next-(j+1))*sizeof(Bucket)));
+                //         if (j < self->index_next){
+                //             self->index_next -= 1;
+                //         }
+                //         if (j < self->index_oldest){
+                //             self->index_oldest -= 1;
+                //         }
+                //     }
+                // }
                 break;
             }
         }
@@ -135,19 +143,15 @@ uint32_t wnd_bit_count_apx_next(StateApx* self, bool item) {
     int bucket_max = 0;
     for(size_t i=0; i <= self->total_bucket; i++){
         if (self->wnd_buffer[i].size != 0) {
-           // printf("i   %u\n",i);
             count_total += self->wnd_buffer[i].size;
-            //printf( "self->wnd_buffer[i].size = %d\n", self->wnd_buffer[i].size);
             if(self->wnd_buffer[i].size > bucket_max){
-                //printf("self->wnd_buffer[i].size = %d\n", self->wnd_buffer[i].size);
+                printf("self->wnd_buffer[i].size = %d\n", self->wnd_buffer[i].size);
                 bucket_max = self->wnd_buffer[i].size;
             }
         }
     }
-   // printf("count_total = %d\n",count_total);
-
-  // printf("self->count = %d\n", self->count);
-    //printf("bucket_max = %d\n", bucket_max);
+    printf("self->count = %d\n", self->count);
+    printf("bucket_max = %d\n", bucket_max);
     count_total = count_total - bucket_max + 1;
     return count_total;
 } 
